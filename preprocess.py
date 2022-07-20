@@ -113,7 +113,7 @@ def imreg(stack, zreg=True, treg=True, parallel=True):
     if zreg:
     
         # Register stack in z
-        sr = StackReg(StackReg.AFFINE)
+        sr = StackReg(StackReg.RIGID_BODY)
         
         if parallel:
      
@@ -164,7 +164,7 @@ def imreg(stack, zreg=True, treg=True, parallel=True):
 
 #%%
 
-rstack = imreg(stack, zreg=False, treg=True)
+rstack = imreg(stack, zreg=True, treg=True)
 
 io.imsave(
     rstack_path, 
