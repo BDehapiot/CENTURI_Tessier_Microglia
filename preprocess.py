@@ -9,17 +9,20 @@ from joblib import Parallel, delayed
 
 #%%
 
-# root = '/media/bdehapiot/DATA/CurrentTasks/CENTURIProject_INMED_MarineTessier/'
-# name = 'M1_1d-post-injury_evening_12-05-20.tif'
-# stack = io.imread(root + name)
-
 # Inputs
-stack_name = 'M1_1d-post-injury_evening_12-05-20_400x400_8bits.tif'
+# stack_name = 'M1_1d-post-injury_evening_12-05-20_400x400_8bits.tif'
+# stack_name = 'M1_1d-post-injury_evening_12-05-20.tif'
+# stack_name = 'M2_1d-post-injury_evening_13-05-20.tif'
+stack_name = 'M3_1d-post-injury_morning_13-05-20.tif'
+# stack_name = 'M4_1d-post-injury_morning_14-05-20.tif'
+# stack_name = 'M6_1d-post-injury_evening_14-05-20.tif'
+# stack_name = 'M64_1d-post-injury_evening_23-01-20.tif'
+# stack_name = 'M66_1d-post-injury_morning_23-01-20.tif'
 
 # Get paths
-data_path = Path(Path.cwd() / 'data' )
-stack_path = Path(Path.cwd() / 'data' / stack_name)
-rstack_path = Path(Path.cwd() / 'data' / (stack_path.stem + '_reg.tif'))
+root_path = Path.cwd()
+stack_path = Path(Path.cwd(), 'data', stack_name)
+rstack_path = Path(Path.cwd(), 'data', (stack_path.stem + '_reg.tif'))
 
 # Open file
 stack = io.imread(stack_path)
@@ -160,11 +163,11 @@ def imreg(stack, zreg=True, treg=True, parallel=True):
         rstack = np.stack([arrays for arrays in output_list], axis=0)
         rstack = np.swapaxes(rstack,0,1)
 
-    return rstack
-
+    return rstack      
+    
 #%%
 
-rstack = imreg(stack, zreg=True, treg=True)
+rstack = imreg(stack, zreg=True, treg=False) # select options
 
 io.imsave(
     rstack_path, 
@@ -176,4 +179,5 @@ io.imsave(
 
 #%%
 
-viewer = napari.view_image(rstack)
+viewer = napari.Viewer()
+viewer.add_image(rstack)

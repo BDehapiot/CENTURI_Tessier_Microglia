@@ -26,8 +26,7 @@ rstack = io.imread(rstack_path)
 #%%
 
 from skimage.feature import peak_local_max
-from skimage.feature import blob_dog
-from skimage.feature import blob_log
+from skimage.feature import blob_dog, blob_log
 
 temp = rstack[0,15,...]
 
@@ -43,40 +42,53 @@ temp = rstack[0,15,...]
 #     labels=None, 
 #     )
 
-# blob dog
-features = blob_dog(
-    temp,
-    min_sigma=1.6, 
-    max_sigma=10, 
-    sigma_ratio=1.6, 
-    threshold=0.1, 
-    overlap=0.5,
-    threshold_rel=None, 
-    exclude_border=False
-    )
-
-# # blob log
-# features = blob_log(
+# # blob dog
+# features = blob_dog(
 #     temp,
-#     min_sigma=1, 
-#     max_sigma=500, 
+#     min_sigma=1.6, 
+#     max_sigma=10, 
 #     sigma_ratio=1.6, 
-#     threshold=50, 
+#     threshold=0.1, 
 #     overlap=0.5,
 #     threshold_rel=None, 
 #     exclude_border=False
 #     )
 
+# # blob log
+# features = blob_log(
+#     temp,
+#     min_sigma=1, 
+#     max_sigma=50, 
+#     num_sigma=20, 
+#     threshold=0.25, 
+#     overlap=0.5, 
+#     log_scale=False, 
+#     threshold_rel=None, 
+#     exclude_border=False,
+#     )
+
+# blob log
+features = blob_log(
+    rstack[0,...],
+    min_sigma=1, 
+    max_sigma=50, 
+    num_sigma=10, 
+    threshold=0.25, 
+    overlap=0.5, 
+    log_scale=False, 
+    threshold_rel=None, 
+    exclude_border=False,
+    )
+
 #%%
 
-viewer = napari.view_image(temp)
+viewer = napari.view_image(rstack[0,...])
 
 points_layer = viewer.add_points(
-    features[:,0:2], 
-    size=features[:,2]*10,
+    features[:,0:3], 
+    size=features[:,3]*10,
     edge_width=0.1,
     edge_color='red',
     face_color='transparent',
     opacity = 0.5,
     )
-
