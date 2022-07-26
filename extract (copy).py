@@ -251,6 +251,48 @@ def immask(crop_reg, coords, xysize=xysize):
 
     return crop_mask
 
+''' ----------------------------------------------------------------------- '''
+
+def imridge(crop_reg, sigmas=np.arange(0.5, 3)):
+    
+    """
+    Description
+    
+    Parameters
+    ----------
+    crop_reg : list of ndarray
+        Description
+    
+    Returns
+    -------
+    crop_ridge : list of ndarray
+        Description
+
+    Raises
+    ------
+    """ 
+    
+    crop_ridge = []
+    
+    for i in range(len(crop_reg)):
+        
+        ridge = crop_reg[i].copy()
+        
+        for t in range(ridge.shape[0]):
+            
+            # Apply ridge filter
+            ridge[t,...] = sato(
+                ridge[t,...].astype('float'), 
+                sigmas=np.arange(0.5, 3), 
+                mode='reflect', 
+                black_ridges=False
+                )
+            
+        # Append crop_ridge
+        crop_ridge.append(ridge)
+
+    return crop_ridge
+
 #%% Main
 
 # Convert to uint8
@@ -261,6 +303,8 @@ coords = imselect(stack)
 crop_reg = imcrop(stack, coords)
 # Mask
 crop_mask = immask(crop_reg, coords)
+# Ridge
+crop_ridge = imridge(crop_reg)
 
 #%% Save
 
@@ -291,6 +335,14 @@ for i in range(coords.shape[0]):
     io.imsave(
         Path(dir_path, temp_name),
         crop_mask[i].astype('uint8'),
+        check_contrast=False
+        )
+    
+    # ridge
+    temp_name = f'crop_ridge_{i:03}.tif'
+    io.imsave(
+        Path(dir_path, temp_name),
+        crop_ridge[i].astype('uint8'),
         check_contrast=False
         )
 
