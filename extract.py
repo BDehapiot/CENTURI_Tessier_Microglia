@@ -5,12 +5,13 @@ import numpy as np
 from skimage import io
 from pathlib import Path 
 from pystackreg import StackReg
-from skimage.filters import sato
 from joblib import Parallel, delayed 
 from skimage.draw import polygon2mask
 from napari.utils.notifications import show_info
+from skimage.filters import gaussian, threshold_li
+from skimage.morphology import remove_small_holes, remove_small_objects
 
-#%%
+#%% Get stack name
 
 # stack_name = 'M1_1d-post-injury_evening_12-05-20_400x400_8bits.tif'
 # stack_name = 'M1_1d-post-injury_evening_12-05-20.tif'
@@ -21,12 +22,23 @@ stack_name = 'M2_1d-post-injury_evening_13-05-20.tif'
 # stack_name = 'M64_1d-post-injury_evening_23-01-20.tif'
 # stack_name = 'M66_1d-post-injury_morning_23-01-20.tif'
 
-# Inputs
+#%% Initialize
+
+# Parameters
+preload = True # Load a preselected coordinates
 xysize = 128
-zsize = 5 # should be odd
+zsize = 5
+thresh_coeff = 1.25
 
 # Get paths
 stack_path = Path(Path.cwd(), 'data', stack_name)
+
+# Create directory
+dir_path = Path(Path.cwd(), 'data', stack_path.stem)
+dir_path.mkdir(exist_ok=True)
+
+# Clear directory
+[files.unlink() for files in dir_path.glob("*.tif")] 
 
 # Open file
 stack = io.imread(stack_path)
@@ -79,7 +91,7 @@ def range_uint8(img, int_range=0.99):
 
 ''' ----------------------------------------------------------------------- '''
 
-def imselect(stack):
+def imselect(stack, preload=preload):
     
     """
     Description
@@ -98,22 +110,29 @@ def imselect(stack):
     ------
     """ 
     
-    # Display in Napari
-    viewer = napari.Viewer()
-    viewer.add_image(stack[stack.shape[0]//2,...]) # mid frame
+    if preload and Path(dir_path, 'coords.csv').exist():
+        
+        # Get coords from
+        coords = np.genfromtxt(Path(dir_path, 'coords.csv'), delimiter=',')
+        
+    else:
     
-    # Extract coordinates
-    points_layer = viewer.add_points(ndim=3)
-    points_layer.mode = 'add'
-    _ = show_info('select points')
-    viewer.show(block=True)
-    coords = points_layer.data
+        # Display in Napari
+        viewer = napari.Viewer()
+        viewer.add_image(stack[stack.shape[0]//2,...]) # mid frame
+        
+        # Extract coordinates
+        points_layer = viewer.add_points(ndim=3)
+        points_layer.mode = 'add'
+        _ = show_info('select points')
+        viewer.show(block=True)
+        coords = points_layer.data
 
     return coords
 
 ''' ----------------------------------------------------------------------- '''
 
-def imcrop(stack, coords, xysize=xysize, zsize=zsize):
+def imreg(stack, coords, xysize=xysize, zsize=zsize):
     
     """
     Description
@@ -143,7 +162,7 @@ def imcrop(stack, coords, xysize=xysize, zsize=zsize):
     
     # Nested function ---------------------------------------------------------
     
-    def _imcrop(stack, coord):
+    def _imreg(stack, coord):
         
         sr = StackReg(StackReg.RIGID_BODY)
         tempt = np.zeros([stack.shape[0], xysize, xysize])
@@ -198,7 +217,7 @@ def imcrop(stack, coords, xysize=xysize, zsize=zsize):
     # Main function -----------------------------------------------------------
         
     crop_reg = Parallel(n_jobs=-1)(
-        delayed(_imcrop)(
+        delayed(_imreg)(
             stack,
             coords[i]
             )
@@ -209,7 +228,7 @@ def imcrop(stack, coords, xysize=xysize, zsize=zsize):
 
 ''' ----------------------------------------------------------------------- '''
 
-def immask(crop_reg, coords, xysize=xysize):
+def imroi(crop_reg, coords, xysize=xysize):
     
     """
     Description
@@ -224,14 +243,14 @@ def immask(crop_reg, coords, xysize=xysize):
     
     Returns
     -------
-    crop_mask : list of ndarray
+    crop_roi : list of ndarray
         Description
 
     Raises
     ------
     """ 
     
-    crop_mask = []
+    crop_roi = []
         
     for i in range(coords.shape[0]):
         
@@ -246,56 +265,171 @@ def immask(crop_reg, coords, xysize=xysize):
         viewer.show(block=True)
         vertices = shapes_layer.data[0]
         
-        # Extract vertices
-        crop_mask.append(polygon2mask((xysize, xysize), vertices))
+        # Append crop_roi
+        crop_roi.append(polygon2mask((xysize, xysize), vertices))
 
+    return crop_roi
+
+''' ----------------------------------------------------------------------- '''
+
+def improcess(crop_reg, crop_roi):
+    
+    """
+    Description
+    
+    Parameters
+    ----------
+    crop_reg : list of ndarray
+        Description
+        
+    crop_roi : list of ndarray
+        Description
+
+    Returns
+    -------
+    crop_process : list of ndarray
+        Description
+
+    Raises
+    ------
+    """ 
+    
+    sr = StackReg(StackReg.AFFINE)
+
+    crop_process = []
+    
+    for reg, roi in zip(crop_reg, crop_roi):
+          
+        # Remove out of roi signal
+        process = reg * gaussian(roi, sigma=5)
+        
+        # Roll image
+        ymean = int(np.mean(np.argwhere(roi)[:,0]))
+        xmean = int(np.mean(np.argwhere(roi)[:,1]))
+        ycorrect = (ymean - xysize//2)*-1
+        xcorrect = (xmean - xysize//2)*-1
+        process = np.roll(process, (ycorrect, xcorrect), axis=(1, 2))
+        
+        # t registration
+        process = sr.register_transform_stack(process, reference='previous') 
+        process[process>255] = 255
+        process[process<0] = 0
+
+        # Append crop_process
+        crop_process.append(process)
+    
+    return crop_process
+
+''' ----------------------------------------------------------------------- '''
+
+def immask(crop_process, thresh_coeff=thresh_coeff):
+    
+    """
+    Description
+    
+    Parameters
+    ----------
+    crop_process : list of ndarray
+        Description
+        
+    thresh_coeff : float
+        Description
+    
+    Returns
+    -------
+    crop_mask : list of ndarray
+        Description
+
+    Raises
+    ------
+    """ 
+    
+    crop_mask = []
+    
+    for process in crop_process:
+        
+        # Get mask
+        mask = process > threshold_li(process) * thresh_coeff
+        for t in range(mask.shape[0]):
+            
+            mask[t,...] = remove_small_objects(
+                mask[t,...], min_size=25, connectivity=2
+                )
+            
+            mask[t,...] = remove_small_holes(
+                mask[t,...], area_threshold=5, connectivity=2
+                )        
+        
+        # Append crop_mask
+        crop_mask.append(mask)
+    
     return crop_mask
 
 #%% Main
 
 # Convert to uint8
 stack = range_uint8(stack, int_range=0.999)
-# Select
+# Select 
 coords = imselect(stack)
-# Crop
-crop_reg = imcrop(stack, coords)
-# Mask
-crop_mask = immask(crop_reg, coords)
+# Crop & register
+crop_reg = imreg(stack, coords)
+# Draw ROIs
+crop_roi = imroi(crop_reg, coords)
+# Process
+crop_process = improcess(crop_reg, crop_roi)
+# Get mask
+crop_mask = immask(crop_process)
 
 #%% Save
 
-# Create directory
-dir_path = Path(Path.cwd(), 'data', stack_path.stem)
-dir_path.mkdir(exist_ok=True)
-
-# Clear directory
-[files.unlink() for files in dir_path.glob("*")] 
-
-# Save data
 for i in range(coords.shape[0]):
+
+    # coords
+    np.savetxt(Path(dir_path, 'coords.csv'), coords, delimiter=',')
     
-    # reg
-    temp_name = f'crop_reg_{i:03}.tif'
-    temp_reg = crop_reg[i]
-    temp_reg[temp_reg > 255] = 255
-    temp_reg[temp_reg < 0] = 0
-    temp_reg = temp_reg.astype('uint8')
+    # process
+    temp_name = f'crop_process_{i:03}.tif'
+    temp_process = crop_process[i].astype('uint8')
     io.imsave(
         Path(dir_path, temp_name),
-        temp_reg,
+        temp_process,
         check_contrast=False
         )
     
     # mask
     temp_name = f'crop_mask_{i:03}.tif'
+    temp_mask = crop_mask[i] * 255
+    temp_mask = temp_mask.astype('uint8')
     io.imsave(
         Path(dir_path, temp_name),
-        crop_mask[i].astype('uint8'),
+        temp_mask,
         check_contrast=False
         )
+            
+    # # reg
+    # temp_name = f'crop_reg_{i:03}.tif'
+    # temp_reg = crop_reg[i]
+    # temp_reg[temp_reg > 255] = 255
+    # temp_reg[temp_reg < 0] = 0
+    # temp_reg = temp_reg.astype('uint8')
+    # io.imsave(
+    #     Path(dir_path, temp_name),
+    #     temp_reg,
+    #     check_contrast=False
+    #     )
+    
+    # # roi
+    # temp_name = f'crop_roi_{i:03}.tif'
+    # io.imsave(
+    #     Path(dir_path, temp_name),
+    #     crop_roi[i].astype('uint8'),
+    #     check_contrast=False
+    #     )
 
 #%% Display
-# idx = 0
-# viewer = napari.Viewer()
+idx = 0
+viewer = napari.Viewer()
 # viewer.add_image(crop_reg[idx])
-# viewer.add_image(crop_mask[idx])
+# viewer.add_image(crop_roi[idx])
+viewer.add_image(crop_process[idx])
+viewer.add_image(crop_mask[idx])
