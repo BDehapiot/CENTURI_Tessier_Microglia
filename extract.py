@@ -11,6 +11,12 @@ from napari.utils.notifications import show_info
 from skimage.filters import gaussian, threshold_li
 from skimage.morphology import remove_small_holes, remove_small_objects
 
+#%% To do
+
+# add distance from injury
+# get pix & vox size
+# 10 to 20 microglia per Z-stack
+
 #%% Get stack name
 
 # stack_name = 'M1_1d-post-injury_evening_12-05-20_400x400_8bits.tif'
@@ -25,7 +31,7 @@ stack_name = 'M2_1d-post-injury_evening_13-05-20.tif'
 #%% Initialize
 
 # Parameters
-preload = True # Load a preselected coordinates
+preload = False # Load a preselected coordinates
 xysize = 128
 zsize = 5
 thresh_coeff = 1.25
@@ -38,7 +44,8 @@ dir_path = Path(Path.cwd(), 'data', stack_path.stem)
 dir_path.mkdir(exist_ok=True)
 
 # Clear directory
-[files.unlink() for files in dir_path.glob("*.tif")] 
+if not preload:
+    [files.unlink() for files in dir_path.glob("*")] 
 
 # Open file
 stack = io.imread(stack_path)
@@ -100,6 +107,9 @@ def imselect(stack, preload=preload):
     ----------
     stack : ndarray
         Description
+                
+    preload : bool
+        Description
     
     Returns
     -------
@@ -110,9 +120,9 @@ def imselect(stack, preload=preload):
     ------
     """ 
     
-    if preload and Path(dir_path, 'coords.csv').exist():
+    if preload and Path(dir_path, 'coords.csv').is_file():
         
-        # Get coords from
+        # Load preselected coordinates
         coords = np.genfromtxt(Path(dir_path, 'coords.csv'), delimiter=',')
         
     else:
@@ -132,7 +142,7 @@ def imselect(stack, preload=preload):
 
 ''' ----------------------------------------------------------------------- '''
 
-def imreg(stack, coords, xysize=xysize, zsize=zsize):
+def imreg(stack, coords, xysize=xysize, zsize=zsize, preload=preload):
     
     """
     Description
@@ -150,6 +160,9 @@ def imreg(stack, coords, xysize=xysize, zsize=zsize):
         
     zsize : int
         Description
+        
+    preload : bool
+        Description
     
     Returns
     -------
@@ -162,7 +175,7 @@ def imreg(stack, coords, xysize=xysize, zsize=zsize):
     
     # Nested function ---------------------------------------------------------
     
-    def _imreg(stack, coord):
+    def _imreg(stack, coord, preload=preload):
         
         sr = StackReg(StackReg.RIGID_BODY)
         tempt = np.zeros([stack.shape[0], xysize, xysize])
@@ -216,19 +229,28 @@ def imreg(stack, coords, xysize=xysize, zsize=zsize):
            
     # Main function -----------------------------------------------------------
         
-    crop_reg = Parallel(n_jobs=-1)(
-        delayed(_imreg)(
-            stack,
-            coords[i]
+    if preload:
+        
+        crop_reg = []
+        for path in sorted(dir_path.iterdir()):           
+            if 'reg' in path.name:
+                crop_reg.append(io.imread(path))
+        
+    else:
+    
+        crop_reg = Parallel(n_jobs=-1)(
+            delayed(_imreg)(
+                stack,
+                coords[i]
+                )
+            for i in range(coords.shape[0])
             )
-        for i in range(coords.shape[0])
-        )
 
     return crop_reg
 
 ''' ----------------------------------------------------------------------- '''
 
-def imroi(crop_reg, coords, xysize=xysize):
+def imroi(crop_reg, coords, xysize=xysize, preload=preload):
     
     """
     Description
@@ -240,6 +262,9 @@ def imroi(crop_reg, coords, xysize=xysize):
         
     coords : ndarray
         Description
+        
+    preload : bool
+        Description
     
     Returns
     -------
@@ -250,23 +275,32 @@ def imroi(crop_reg, coords, xysize=xysize):
     ------
     """ 
     
-    crop_roi = []
+    if preload:
         
-    for i in range(coords.shape[0]):
-        
-        # Display in Napari
-        viewer = napari.Viewer()
-        viewer.add_image(np.mean(crop_reg[i], axis=0)) # mean temporal proj.
-        
-        # Extract vertices
-        shapes_layer = viewer.add_shapes(ndim=2)
-        shapes_layer.mode = 'add_polygon'
-        _ = show_info('select shapes')
-        viewer.show(block=True)
-        vertices = shapes_layer.data[0]
-        
-        # Append crop_roi
-        crop_roi.append(polygon2mask((xysize, xysize), vertices))
+        crop_roi = []
+        for path in sorted(dir_path.iterdir()):           
+            if 'roi' in path.name:
+                crop_roi.append(io.imread(path))
+    
+    else:
+    
+        crop_roi = []
+            
+        for i in range(coords.shape[0]):
+            
+            # Display in Napari
+            viewer = napari.Viewer()
+            viewer.add_image(np.mean(crop_reg[i], axis=0)) # mean temporal proj.
+            
+            # Extract vertices
+            shapes_layer = viewer.add_shapes(ndim=2)
+            shapes_layer.mode = 'add_polygon'
+            _ = show_info('select shapes')
+            viewer.show(block=True)
+            vertices = shapes_layer.data[0]
+            
+            # Append crop_roi
+            crop_roi.append(polygon2mask((xysize, xysize), vertices))
 
     return crop_roi
 
@@ -350,6 +384,7 @@ def immask(crop_process, thresh_coeff=thresh_coeff):
         
         # Get mask
         mask = process > threshold_li(process) * thresh_coeff
+        
         for t in range(mask.shape[0]):
             
             mask[t,...] = remove_small_objects(
@@ -365,6 +400,25 @@ def immask(crop_process, thresh_coeff=thresh_coeff):
     
     return crop_mask
 
+''' ----------------------------------------------------------------------- '''
+
+def imdiff(crop_mask):
+    
+    crop_diff = []
+    
+    for mask in crop_mask:  
+        
+        mask = mask.astype('float')
+        diff = np.zeros_like(mask)
+        
+        for t in range(1, mask.shape[0]):
+            
+            diff[t,...] = np.mean(mask[t-1:t+1,...], axis=0)
+            
+        crop_diff.append(diff)      
+    
+    return crop_diff
+
 #%% Main
 
 # Convert to uint8
@@ -379,6 +433,8 @@ crop_roi = imroi(crop_reg, coords)
 crop_process = improcess(crop_reg, crop_roi)
 # Get mask
 crop_mask = immask(crop_process)
+# Get diff
+crop_diff = imdiff(crop_mask)
 
 #%% Save
 
@@ -386,6 +442,28 @@ for i in range(coords.shape[0]):
 
     # coords
     np.savetxt(Path(dir_path, 'coords.csv'), coords, delimiter=',')
+    
+    if not preload:
+        
+        # reg
+        temp_name = f'crop_reg_{i:03}.tif'
+        temp_reg = crop_reg[i]
+        temp_reg[temp_reg > 255] = 255
+        temp_reg[temp_reg < 0] = 0
+        temp_reg = temp_reg.astype('uint8')
+        io.imsave(
+            Path(dir_path, temp_name),
+            temp_reg,
+            check_contrast=False
+            )
+        
+        # roi
+        temp_name = f'crop_roi_{i:03}.tif'
+        io.imsave(
+            Path(dir_path, temp_name),
+            crop_roi[i].astype('uint8'),
+            check_contrast=False
+            )
     
     # process
     temp_name = f'crop_process_{i:03}.tif'
@@ -405,31 +483,12 @@ for i in range(coords.shape[0]):
         temp_mask,
         check_contrast=False
         )
-            
-    # # reg
-    # temp_name = f'crop_reg_{i:03}.tif'
-    # temp_reg = crop_reg[i]
-    # temp_reg[temp_reg > 255] = 255
-    # temp_reg[temp_reg < 0] = 0
-    # temp_reg = temp_reg.astype('uint8')
-    # io.imsave(
-    #     Path(dir_path, temp_name),
-    #     temp_reg,
-    #     check_contrast=False
-    #     )
-    
-    # # roi
-    # temp_name = f'crop_roi_{i:03}.tif'
-    # io.imsave(
-    #     Path(dir_path, temp_name),
-    #     crop_roi[i].astype('uint8'),
-    #     check_contrast=False
-    #     )
 
 #%% Display
+
 idx = 0
 viewer = napari.Viewer()
-# viewer.add_image(crop_reg[idx])
-# viewer.add_image(crop_roi[idx])
 viewer.add_image(crop_process[idx])
 viewer.add_image(crop_mask[idx])
+viewer.add_image(crop_diff[idx]*255)
+viewer.grid.enabled = True
