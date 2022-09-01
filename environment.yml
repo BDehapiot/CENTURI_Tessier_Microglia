@@ -1,4 +1,4 @@
-name: CENTURI_Tessier_Microglia
+name: Microglia
 
 channels:
   - conda-forge
