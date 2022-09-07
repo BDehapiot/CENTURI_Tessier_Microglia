@@ -19,7 +19,6 @@ from skimage.morphology import remove_small_holes, remove_small_objects
 
 #%% Get stack name
 
-# stack_name = 'M1_1d-post-injury_evening_12-05-20_400x400_8bits.tif'
 # stack_name = 'M1_1d-post-injury_evening_12-05-20.tif'
 stack_name = 'M2_1d-post-injury_evening_13-05-20.tif'
 # stack_name = 'M3_1d-post-injury_morning_13-05-20.tif'
@@ -31,7 +30,7 @@ stack_name = 'M2_1d-post-injury_evening_13-05-20.tif'
 #%% Initialize
 
 # Parameters
-preload = False # Load a preselected coordinates
+preload = True # Load a preselected coordinates
 xysize = 128
 zsize = 5
 thresh_coeff = 1.25
@@ -442,7 +441,7 @@ for i in range(coords.shape[0]):
 
     # coords
     np.savetxt(Path(dir_path, 'coords.csv'), coords, delimiter=',')
-    
+
     if not preload:
         
         # reg
@@ -483,12 +482,22 @@ for i in range(coords.shape[0]):
         temp_mask,
         check_contrast=False
         )
+    
+    # diff
+    temp_name = f'crop_diff_{i:03}.tif'
+    temp_diff = crop_diff[i] * 255
+    temp_diff = temp_diff.astype('uint8')
+    io.imsave(
+        Path(dir_path, temp_name),
+        temp_diff,
+        check_contrast=False
+        )
 
 #%% Display
 
-idx = 0
-viewer = napari.Viewer()
-viewer.add_image(crop_process[idx])
-viewer.add_image(crop_mask[idx])
-viewer.add_image(crop_diff[idx]*255)
-viewer.grid.enabled = True
+# idx = 0
+# viewer = napari.Viewer()
+# viewer.add_image(crop_process[idx])
+# viewer.add_image(crop_mask[idx])
+# viewer.add_image(crop_diff[idx]*255)
+# viewer.grid.enabled = True
