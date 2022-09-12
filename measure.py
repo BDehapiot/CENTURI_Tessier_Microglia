@@ -1,37 +1,14 @@
 #%%
 
 import numpy as np
+import pandas as pd
 from skimage import io
 from pathlib import Path 
 
-#%% Open data
-
-# merged_mask = []
-# merged_diff =[]
-
-# data_path = Path(Path.cwd(), 'data')
-
-# for i, fold_path in enumerate(sorted(data_path.iterdir())):   
-    
-#     if fold_path.is_dir():
-        
-#         crop_mask = []
-#         crop_diff = []
-        
-#         for path in sorted(fold_path.iterdir()):  
-            
-#             if 'crop_mask' in path.name:                
-#                 crop_mask.append(io.imread(path))
-        
-#             if 'crop_diff' in path.name:                
-#                 crop_diff.append(io.imread(path))     
-                
-#         merged_mask.append(crop_mask)
-#         merged_diff.append(crop_diff)
-        
 #%%
 
-merged_results = []
+all_data = []
+all_means = []
 
 data_path = Path(Path.cwd(), 'data')
 
@@ -39,10 +16,13 @@ for exp_path in sorted(data_path.iterdir()):
     
     if exp_path.is_dir():
         
+        idx = -1
+        
         for path in sorted(exp_path.iterdir()):  
-            
+                        
             # Get path and open data           
-            if 'crop_mask' in path.name:   
+            if 'crop_mask' in path.name:  
+                idx = idx + 1 # get cell id
                 mask_path = path
                 diff_path = Path(str(mask_path).replace('mask', 'diff'))
                 mask = io.imread(mask_path)//255
@@ -50,16 +30,61 @@ for exp_path in sorted(data_path.iterdir()):
                 diff[diff==255] = 0
                 diff[diff==127] = 1
                 
-                # Get results
-                areas = np.sum(mask, axis=(1,2))
-                sdiff = np.sum(diff, axis=(1,2))
+                # Get data & means 
+                area = np.sum(mask, axis=(1,2)) # mask area (pixels)
+                ndiff = np.sum(diff, axis=(1,2))/area # % of changed pixels
+                area_mean = np.mean(area)
+                ndiff_mean = np.mean(ndiff)
                 
+                # Append data 
+                all_data.append((
+                    exp_path.stem, # name of the experiment
+                    idx, # cell_id
+                    area, ndiff # data
+                    ))
+                
+                # Append means
+                all_means.append((
+                    exp_path.stem, # name of the experiment
+                    idx, # cell_id
+                    area_mean, ndiff_mean # means                
+                    ))                
 
-            
+#%%
 
-            #     results = np.sum(mask, axis=(1,2))
-                
-            # if 'crop_diff' in path.name:                
-            #     diff = io.imread(path)  
-            #     results = np.concatenate(results, np.sum(diff[diff==127], axis=(1,2)))
-                
+all_data = pd.DataFrame(all_data)
+all_data.columns = [
+    'exp_name', 
+    'cell_id', 
+    'area', 
+    'change_ratio',
+    ]
+
+all_means = pd.DataFrame(all_means)
+all_means.columns = [
+    'exp_name', 
+    'cell_id', 
+    'area_mean', 
+    'change_ratio_mean'
+    ]
+
+#%%
+
+exp_means = []
+
+exp_names = all_means.exp_name.unique()
+
+for exp_name in exp_names:
+    
+    temp = all_means[all_means['exp_name'] == exp_name]
+    
+    exp_means.append((
+        exp_name,
+        np.mean(temp['area_mean']),
+        np.mean(temp['change_ratio_mean']),
+        ))
+
+    
+    
+
+# test = all_means[all_means['exp. name'] == 'M1_1d-post-injury_evening_12-05-20']               

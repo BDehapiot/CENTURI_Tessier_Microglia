@@ -20,17 +20,17 @@ from skimage.morphology import remove_small_holes, remove_small_objects
 #%% Get stack name
 
 # stack_name = 'M1_1d-post-injury_evening_12-05-20.tif'
-stack_name = 'M2_1d-post-injury_evening_13-05-20.tif'
+# stack_name = 'M2_1d-post-injury_evening_13-05-20.tif'
 # stack_name = 'M3_1d-post-injury_morning_13-05-20.tif'
 # stack_name = 'M4_1d-post-injury_morning_14-05-20.tif'
 # stack_name = 'M6_1d-post-injury_evening_14-05-20.tif'
 # stack_name = 'M64_1d-post-injury_evening_23-01-20.tif'
-# stack_name = 'M66_1d-post-injury_morning_23-01-20.tif'
+stack_name = 'M66_1d-post-injury_morning_23-01-20.tif'
 
 #%% Initialize
 
 # Parameters
-preload = True # Load a preselected coordinates
+preload = False # Load a preselected coordinates
 xysize = 128
 zsize = 5
 thresh_coeff = 1.25

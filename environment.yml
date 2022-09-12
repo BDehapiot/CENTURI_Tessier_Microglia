@@ -8,6 +8,7 @@ dependencies:
   - pyqt=5.12.3
   - napari
   - numpy
+  - pandas
   - scipy
   - scikit-image
   - matplotlib-base
