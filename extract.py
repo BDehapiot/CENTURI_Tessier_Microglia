@@ -24,16 +24,16 @@ from skimage.morphology import remove_small_holes, remove_small_objects
 # stack_name = 'M3_1d-post-injury_morning_13-05-20.tif'
 # stack_name = 'M4_1d-post-injury_morning_14-05-20.tif'
 # stack_name = 'M6_1d-post-injury_evening_14-05-20.tif'
-# stack_name = 'M64_1d-post-injury_evening_23-01-20.tif'
-stack_name = 'M66_1d-post-injury_morning_23-01-20.tif'
+stack_name = 'M64_1d-post-injury_evening_23-01-20.tif'
+# stack_name = 'M66_1d-post-injury_morning_23-01-20.tif'
 
 #%% Initialize
 
 # Parameters
-preload = False # Load a preselected coordinates
+preload = True # Load a preselected coordinates
 xysize = 128
 zsize = 5
-thresh_coeff = 1.25
+thresh_coeff = 2
 
 # Get paths
 stack_path = Path(Path.cwd(), 'data', stack_name)
@@ -466,7 +466,10 @@ for i in range(coords.shape[0]):
     
     # process
     temp_name = f'crop_process_{i:03}.tif'
-    temp_process = crop_process[i].astype('uint8')
+    temp_process = crop_process[i] * 255
+    temp_process[temp_process > 255] = 255
+    temp_process[temp_process < 0] = 0
+    temp_process = temp_process.astype('uint8')
     io.imsave(
         Path(dir_path, temp_name),
         temp_process,

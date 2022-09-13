@@ -34,7 +34,9 @@ for exp_path in sorted(data_path.iterdir()):
                 area = np.sum(mask, axis=(1,2)) # mask area (pixels)
                 ndiff = np.sum(diff, axis=(1,2))/area # % of changed pixels
                 area_mean = np.mean(area)
+                area_sd = np.std(area)
                 ndiff_mean = np.mean(ndiff)
+                ndiff_sd = np.std(ndiff)
                 
                 # Append data 
                 all_data.append((
@@ -47,7 +49,8 @@ for exp_path in sorted(data_path.iterdir()):
                 all_means.append((
                     exp_path.stem, # name of the experiment
                     idx, # cell_id
-                    area_mean, ndiff_mean # means                
+                    area_mean, area_sd, 
+                    ndiff_mean, ndiff_sd  
                     ))                
 
 #%%
@@ -64,8 +67,10 @@ all_means = pd.DataFrame(all_means)
 all_means.columns = [
     'exp_name', 
     'cell_id', 
-    'area_mean', 
-    'change_ratio_mean'
+    'area_mean',
+    'area_sd',
+    'change_ratio_mean',
+    'change_ratio_sd'
     ]
 
 #%%
@@ -81,10 +86,19 @@ for exp_name in exp_names:
     exp_means.append((
         exp_name,
         np.mean(temp['area_mean']),
+        np.mean(temp['area_sd']),
         np.mean(temp['change_ratio_mean']),
+        np.mean(temp['change_ratio_sd']),
         ))
 
-    
+exp_means = pd.DataFrame(exp_means)
+exp_means.columns = [
+    'exp_name', 
+    'area_mean',
+    'area_sd',
+    'change_ratio_mean',
+    'change_ratio_sd'
+    ]    
     
 
 # test = all_means[all_means['exp. name'] == 'M1_1d-post-injury_evening_12-05-20']               
