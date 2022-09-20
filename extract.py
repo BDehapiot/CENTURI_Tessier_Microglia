@@ -4,6 +4,7 @@ import napari
 import numpy as np
 from skimage import io
 from pathlib import Path 
+from tifffile import imread
 from pystackreg import StackReg
 from joblib import Parallel, delayed 
 from skimage.draw import polygon2mask
@@ -21,11 +22,17 @@ from skimage.morphology import remove_small_holes, remove_small_objects
 
 # stack_name = 'M1_1d-post-injury_evening_12-05-20.tif'
 # stack_name = 'M2_1d-post-injury_evening_13-05-20.tif'
-stack_name = 'M3_1d-post-injury_morning_13-05-20.tif'
+# stack_name = 'M3_1d-post-injury_morning_13-05-20.tif'
 # stack_name = 'M4_1d-post-injury_morning_14-05-20.tif'
 # stack_name = 'M6_1d-post-injury_evening_14-05-20.tif'
 # stack_name = 'M64_1d-post-injury_evening_23-01-20.tif'
 # stack_name = 'M66_1d-post-injury_morning_23-01-20.tif'
+
+# stack_name = 'M1_5d-post-injury_evening_16-05-20.tif'
+# stack_name = 'M2_5d-post-injury_evening_17-05-20.tif'
+# stack_name = 'M3_5d-post-injury_morning_17-05-20.tif'
+# stack_name = 'M4_5d-post-injury_morning_18-05-20.tif'
+stack_name = 'M6_5d-post-injury_evening_18-05-20.tif'
 
 #%% Initialize
 
@@ -47,7 +54,7 @@ if not preload:
     [files.unlink() for files in dir_path.glob("*")] 
 
 # Open file
-stack = io.imread(stack_path)
+stack = imread(stack_path)
 
 #%% functions
 
@@ -233,7 +240,7 @@ def imreg(stack, coords, xysize=xysize, zsize=zsize, preload=preload):
         crop_reg = []
         for path in sorted(dir_path.iterdir()):           
             if 'reg' in path.name:
-                crop_reg.append(io.imread(path))
+                crop_reg.append(imread(path))
         
     else:
     
@@ -279,7 +286,7 @@ def imroi(crop_reg, coords, xysize=xysize, preload=preload):
         crop_roi = []
         for path in sorted(dir_path.iterdir()):           
             if 'roi' in path.name:
-                crop_roi.append(io.imread(path))
+                crop_roi.append(imread(path))
     
     else:
     
@@ -428,7 +435,7 @@ coords = imselect(stack, preload=preload)
 crop_reg = imreg(stack, coords, preload=preload)
 # Draw ROIs
 crop_roi = imroi(crop_reg, coords, preload=preload)
-# Process
+# Process-
 crop_process = improcess(crop_reg, crop_roi)
 # Get mask
 crop_mask = immask(crop_process)
@@ -468,7 +475,7 @@ for i in range(coords.shape[0]):
     
     # process
     temp_name = f'crop_process_{i:03}.tif'
-    temp_process = crop_process[i] * 255
+    temp_process = crop_process[i]
     temp_process[temp_process > 255] = 255
     temp_process[temp_process < 0] = 0
     temp_process = temp_process.astype('uint8')

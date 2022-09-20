@@ -25,8 +25,14 @@ for exp_path in sorted(data_path.iterdir()):
                 idx = idx + 1 # get cell id
                 mask_path = path
                 diff_path = Path(str(mask_path).replace('mask', 'diff'))
-                mask = io.imread(mask_path)//255
-                diff = io.imread(diff_path)
+                
+                # mask = io.imread(mask_path, as_gray=True)//255
+                # diff = io.imread(diff_path, as_gray=False)
+                                
+                import tifffile
+                mask = tifffile.imread(mask_path)//255
+                diff = tifffile.imread(diff_path)
+                
                 diff[diff==255] = 0
                 diff[diff==127] = 1
                 
