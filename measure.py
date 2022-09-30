@@ -6,6 +6,7 @@ from skimage import io
 from pathlib import Path 
 from tifffile import imread
 import matplotlib.pyplot as plt
+from scipy import stats
 
 #%% 
 
@@ -21,7 +22,6 @@ ctrl_5d = [
     ]
 
 bum_1d = [
-    # 'M3_1d-post-injury_morning_13-05-20', 
     'M4_1d-post-injury_morning_14-05-20',
     'M6_1d-post-injury_evening_14-05-20',
     'M66_1d-post-injury_morning_23-01-20'    
@@ -175,13 +175,55 @@ ax2.boxplot([
     all_means[all_means['cond_name'] == 'bum_5d']['change_ratio_mean'],
     ], widths=0.75, labels=labels)
 
+#%%
 
+stat_1d = stats.ttest_ind(
+    all_means[all_means['cond_name'] == 'ctrl_1d']['change_ratio_mean'],
+    all_means[all_means['cond_name'] == 'bum_1d']['change_ratio_mean'],
+    )
+print(f'ctrl_1d = bum_1d p-value = {stat_1d[1]:.3e}')
 
-# fig2, ax1 = plt.subplots(figsize=(3, 9), dpi=80)
-# ax1.set_title('Exp')
+stat_5d = stats.ttest_ind(
+    all_means[all_means['cond_name'] == 'ctrl_5d']['change_ratio_mean'],
+    all_means[all_means['cond_name'] == 'bum_5d']['change_ratio_mean'],
+    )
+print(f'ctrl_5d = bum_5d p-value = {stat_5d[1]:.3e}')
+
+stat_ctrl = stats.ttest_ind(
+    all_means[all_means['cond_name'] == 'ctrl_1d']['change_ratio_mean'],
+    all_means[all_means['cond_name'] == 'ctrl_5d']['change_ratio_mean'],
+    )
+print(f'ctrl_1d = ctrl_5d p-value = {stat_ctrl[1]:.3e}')
+
+stat_bum = stats.ttest_ind(
+    all_means[all_means['cond_name'] == 'bum_1d']['change_ratio_mean'],
+    all_means[all_means['cond_name'] == 'bum_5d']['change_ratio_mean'],
+    )
+print(f'bum_1d = bum_5d p-value = {stat_bum[1]:.3e}')
+
+# fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(6, 9), dpi=100)
+# ax1.set_title('1 day post injury')
+# ax1.set_ylim(0,1)
 # ax1.boxplot([
 #     exp_means[exp_means['cond_name'] == 'ctrl_1d']['change_ratio_mean'],
 #     exp_means[exp_means['cond_name'] == 'bum_1d']['change_ratio_mean'],
+#     ], widths=0.75, labels=labels)
+
+# ax2.set_title('5 days post injury')
+# ax2.set_ylim(0,1)
+# ax2.boxplot([
 #     exp_means[exp_means['cond_name'] == 'ctrl_5d']['change_ratio_mean'],
 #     exp_means[exp_means['cond_name'] == 'bum_5d']['change_ratio_mean'],
 #     ], widths=0.75, labels=labels)
+
+# stat_1d = stats.ttest_ind(
+#     exp_means[exp_means['cond_name'] == 'ctrl_1d']['change_ratio_mean'],
+#     exp_means[exp_means['cond_name'] == 'bum_1d']['change_ratio_mean'],
+#     method='exact'
+#     )
+
+# stat_5d = stats.ttest_ind(
+#     exp_means[exp_means['cond_name'] == 'ctrl_5d']['change_ratio_mean'],
+#     exp_means[exp_means['cond_name'] == 'bum_5d']['change_ratio_mean'],
+#     method='exact'
+#     )

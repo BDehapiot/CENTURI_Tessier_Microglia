@@ -1,4 +1,4 @@
-#%%
+#%% Imports 
 
 import napari
 import numpy as np
@@ -12,35 +12,30 @@ from napari.utils.notifications import show_info
 from skimage.filters import gaussian, threshold_li
 from skimage.morphology import remove_small_holes, remove_small_objects
 
-#%% To do
-
-# add distance from injury
-# get pix & vox size
-# 10 to 20 microglia per Z-stack
-
 #%% Get stack name
 
+# Test stack (included in GitHub repository)
+stack_name = 'M1_1d-post-injury_evening_12-05-20_test.tif'
+ 
 # stack_name = 'M1_1d-post-injury_evening_12-05-20.tif'
 # stack_name = 'M2_1d-post-injury_evening_13-05-20.tif'
-# stack_name = 'M3_1d-post-injury_morning_13-05-20.tif'
 # stack_name = 'M4_1d-post-injury_morning_14-05-20.tif'
 # stack_name = 'M6_1d-post-injury_evening_14-05-20.tif'
 # stack_name = 'M64_1d-post-injury_evening_23-01-20.tif'
 # stack_name = 'M66_1d-post-injury_morning_23-01-20.tif'
-
 # stack_name = 'M1_5d-post-injury_evening_16-05-20.tif'
 # stack_name = 'M2_5d-post-injury_evening_17-05-20.tif'
 # stack_name = 'M3_5d-post-injury_morning_17-05-20.tif'
 # stack_name = 'M4_5d-post-injury_morning_18-05-20.tif'
-stack_name = 'M6_5d-post-injury_evening_18-05-20.tif'
+# stack_name = 'M6_5d-post-injury_evening_18-05-20.tif'
 
 #%% Initialize
 
 # Parameters
-preload = False # Load a preselected coordinates
-xysize = 128
-zsize = 5
-thresh_coeff = 2
+preload = False # select microglia using saved coordinates
+xysize = 128 # size of the crop region (pixels)
+zsize = 5 # depth of the crop region, should be odd (slices)
+thresh_coeff = 2 # adjust segmentation threshold using this coefficient
 
 # Get paths
 stack_path = Path(Path.cwd(), 'data', stack_name)
