@@ -1,14 +1,13 @@
-#%%
+#%% Imports
 
 import numpy as np
 import pandas as pd
-from skimage import io
 from pathlib import Path 
 from tifffile import imread
 import matplotlib.pyplot as plt
 from scipy import stats
 
-#%% 
+#%% Get folder name
 
 ctrl_1d = [
     'M1_1d-post-injury_evening_12-05-20',
@@ -33,7 +32,7 @@ bum_5d = [
     'M6_5d-post-injury_evening_18-05-20'
     ]
 
-#%%
+#%% Extract data & get results
 
 all_data = []
 all_means = []
@@ -95,7 +94,7 @@ for exp_path in sorted(data_path.iterdir()):
                     ndiff_mean, ndiff_sd  
                     ))                
 
-#%%
+#%% Format data (DataFrame)
 
 all_data = pd.DataFrame(all_data)
 all_data.columns = [
@@ -117,7 +116,7 @@ all_means.columns = [
     'change_ratio_sd'
     ]
 
-#%%
+#%% Get exp_means
 
 exp_means = []
 
@@ -156,10 +155,11 @@ exp_means.columns = [
     'change_ratio_sd'
     ]    
 
-#%%
+#%% Plot & stat results (all_means)
 
 labels = ['ctrl', 'bum']
 
+# Plot
 fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(6, 9), dpi=100)
 ax1.set_title('1 day post injury')
 ax1.set_ylim(0,1)
@@ -175,55 +175,104 @@ ax2.boxplot([
     all_means[all_means['cond_name'] == 'bum_5d']['change_ratio_mean'],
     ], widths=0.75, labels=labels)
 
-#%%
-
+# Stats
 stat_1d = stats.ttest_ind(
     all_means[all_means['cond_name'] == 'ctrl_1d']['change_ratio_mean'],
     all_means[all_means['cond_name'] == 'bum_1d']['change_ratio_mean'],
     )
-print(f'ctrl_1d = bum_1d p-value = {stat_1d[1]:.3e}')
+print(f'all_means : ctrl_1d = bum_1d ; p-value = {stat_1d[1]:.3e}')
 
 stat_5d = stats.ttest_ind(
     all_means[all_means['cond_name'] == 'ctrl_5d']['change_ratio_mean'],
     all_means[all_means['cond_name'] == 'bum_5d']['change_ratio_mean'],
     )
-print(f'ctrl_5d = bum_5d p-value = {stat_5d[1]:.3e}')
+print(f'all_means : ctrl_5d = bum_5d ; p-value = {stat_5d[1]:.3e}')
 
 stat_ctrl = stats.ttest_ind(
     all_means[all_means['cond_name'] == 'ctrl_1d']['change_ratio_mean'],
     all_means[all_means['cond_name'] == 'ctrl_5d']['change_ratio_mean'],
     )
-print(f'ctrl_1d = ctrl_5d p-value = {stat_ctrl[1]:.3e}')
+print(f'all_means : ctrl_1d = ctrl_5d ; p-value = {stat_ctrl[1]:.3e}')
 
 stat_bum = stats.ttest_ind(
     all_means[all_means['cond_name'] == 'bum_1d']['change_ratio_mean'],
     all_means[all_means['cond_name'] == 'bum_5d']['change_ratio_mean'],
     )
-print(f'bum_1d = bum_5d p-value = {stat_bum[1]:.3e}')
+print(f'all_means : bum_1d = bum_5d ; p-value = {stat_bum[1]:.3e}')
 
-# fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(6, 9), dpi=100)
-# ax1.set_title('1 day post injury')
-# ax1.set_ylim(0,1)
-# ax1.boxplot([
-#     exp_means[exp_means['cond_name'] == 'ctrl_1d']['change_ratio_mean'],
-#     exp_means[exp_means['cond_name'] == 'bum_1d']['change_ratio_mean'],
-#     ], widths=0.75, labels=labels)
+all_means_stat = [
+    ['ctrl_1d = bum_1d', stat_1d[1]],
+    ['ctrl_5d = bum_5d', stat_5d[1]],
+    ['ctrl_1d = ctrl_5d', stat_ctrl[1]],
+    ['bum_1d = bum_5d', stat_bum[1]],
+    ] 
 
-# ax2.set_title('5 days post injury')
-# ax2.set_ylim(0,1)
-# ax2.boxplot([
-#     exp_means[exp_means['cond_name'] == 'ctrl_5d']['change_ratio_mean'],
-#     exp_means[exp_means['cond_name'] == 'bum_5d']['change_ratio_mean'],
-#     ], widths=0.75, labels=labels)
+all_means_stat = pd.DataFrame(
+    all_means_stat,
+    columns=['hypothesis', 'p-value']
+    )
 
-# stat_1d = stats.ttest_ind(
-#     exp_means[exp_means['cond_name'] == 'ctrl_1d']['change_ratio_mean'],
-#     exp_means[exp_means['cond_name'] == 'bum_1d']['change_ratio_mean'],
-#     method='exact'
-#     )
 
-# stat_5d = stats.ttest_ind(
-#     exp_means[exp_means['cond_name'] == 'ctrl_5d']['change_ratio_mean'],
-#     exp_means[exp_means['cond_name'] == 'bum_5d']['change_ratio_mean'],
-#     method='exact'
-#     )
+#%% Plot & stat results (exp_means)
+
+labels = ['ctrl', 'bum']
+
+# Plot
+fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(6, 9), dpi=100)
+ax1.set_title('1 day post injury')
+ax1.set_ylim(0,1)
+ax1.boxplot([
+    exp_means[exp_means['cond_name'] == 'ctrl_1d']['change_ratio_mean'],
+    exp_means[exp_means['cond_name'] == 'bum_1d']['change_ratio_mean'],
+    ], widths=0.75, labels=labels)
+
+ax2.set_title('5 days post injury')
+ax2.set_ylim(0,1)
+ax2.boxplot([
+    exp_means[exp_means['cond_name'] == 'ctrl_5d']['change_ratio_mean'],
+    exp_means[exp_means['cond_name'] == 'bum_5d']['change_ratio_mean'],
+    ], widths=0.75, labels=labels)
+
+# Stats
+stat_1d = stats.ttest_ind(
+    exp_means[exp_means['cond_name'] == 'ctrl_1d']['change_ratio_mean'],
+    exp_means[exp_means['cond_name'] == 'bum_1d']['change_ratio_mean'],
+    )
+print(f'exp_means : ctrl_1d = bum_1d ; p-value = {stat_1d[1]:.3e}')
+
+stat_5d = stats.ttest_ind(
+    exp_means[exp_means['cond_name'] == 'ctrl_5d']['change_ratio_mean'],
+    exp_means[exp_means['cond_name'] == 'bum_5d']['change_ratio_mean'],
+    )
+print(f'exp_means : ctrl_5d = bum_5d ; p-value = {stat_5d[1]:.3e}')
+
+stat_ctrl = stats.ttest_ind(
+    exp_means[exp_means['cond_name'] == 'ctrl_1d']['change_ratio_mean'],
+    exp_means[exp_means['cond_name'] == 'ctrl_5d']['change_ratio_mean'],
+    )
+print(f'exp_means : ctrl_1d = ctrl_5d ; p-value = {stat_ctrl[1]:.3e}')
+
+stat_bum = stats.ttest_ind(
+    exp_means[exp_means['cond_name'] == 'bum_1d']['change_ratio_mean'],
+    exp_means[exp_means['cond_name'] == 'bum_5d']['change_ratio_mean'],
+    )
+print(f'exp_means : bum_1d = bum_5d ; p-value = {stat_bum[1]:.3e}')
+
+exp_means_stat = [
+    ['ctrl_1d = bum_1d', stat_1d[1]],
+    ['ctrl_5d = bum_5d', stat_5d[1]],
+    ['ctrl_1d = ctrl_5d', stat_ctrl[1]],
+    ['bum_1d = bum_5d', stat_bum[1]],
+    ] 
+
+exp_means_stat = pd.DataFrame(
+    exp_means_stat,
+    columns=['hypothesis', 'p-value']
+    )
+
+#%% Save DataFrame as csv
+
+all_means.to_csv('data/all_means.csv')
+exp_means.to_csv('data/exp_means.csv')
+all_means_stat.to_csv('data/all_means_stat.csv')
+exp_means_stat.to_csv('data/exp_means_stat.csv')

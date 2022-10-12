@@ -12,6 +12,13 @@ from napari.utils.notifications import show_info
 from skimage.filters import gaussian, threshold_li
 from skimage.morphology import remove_small_holes, remove_small_objects
 
+#%% Parameters
+
+preload = False # select microglia using saved coordinates
+xysize = 128 # size of the crop region (pixels)
+zsize = 5 # depth of the crop region, should be odd (slices)
+thresh_coeff = 2 # adjust segmentation threshold using this coefficient
+
 #%% Get stack name
 
 # Test stack (included in GitHub repository)
@@ -31,12 +38,6 @@ stack_name = 'M1_1d-post-injury_evening_12-05-20_test.tif'
 
 #%% Initialize
 
-# Parameters
-preload = False # select microglia using saved coordinates
-xysize = 128 # size of the crop region (pixels)
-zsize = 5 # depth of the crop region, should be odd (slices)
-thresh_coeff = 2 # adjust segmentation threshold using this coefficient
-
 # Get paths
 stack_path = Path(Path.cwd(), 'data', stack_name)
 
@@ -53,16 +54,15 @@ stack = imread(stack_path)
 
 #%% functions
 
-def range_uint8(img, percent_low=1, percent_high=99):
+def ranged_uint8(img, percent_low=1, percent_high=99):
 
     """ 
-    Convert image to uint8 considering only values within the percentile range. 
+    Convert image to uint8 using a percentile range.
     
     Parameters
     ----------
     img : ndarray
         Image to be converted.
-        Should not be uint8.
         
     percent_low : float
         Percentile to discard low values.
@@ -104,10 +104,11 @@ def range_uint8(img, percent_low=1, percent_high=99):
 
 def imselect(stack, preload=preload):
     
-    """
-    Run a Napari interface to extract xy and z coordinates of the cells of 
-    interest. If preload, the code will instead import previously saved
-    coordinates.
+    """ 
+    Get xyz coordinates of cells of interest (COIs). 
+    
+    Once Napari is open, select COIs and close the window to proceed.
+    If preload, the code will instead import previously saved coordinates.
     
     Parameters
     ----------
@@ -148,9 +149,14 @@ def imselect(stack, preload=preload):
 
 def imreg(stack, coords, xysize=xysize, zsize=zsize, preload=preload):
     
-    """
-    Crop and register cells of interest in xy through the z acquisition.
-    If preload, the code will instead import registered images from the 
+    """ Crop, register and project cells of interest. 
+    
+    The function first extract a cropped region of xysize (pixels) by zsize 
+    (slices) centered around the imported coordinates. The cropped region is
+    then registered in xy through z axis for every timepoints. Finally, The z 
+    volume is max-projected and registered in xy over time. 
+    
+    If preload, the code will instead import previously saved images.
     
     Parameters
     ----------
@@ -167,12 +173,12 @@ def imreg(stack, coords, xysize=xysize, zsize=zsize, preload=preload):
         Depth of the crop region, should be odd (slices)
         
     preload : bool
-        Description
+        Load previously saved images.
     
     Returns
     -------
     crop_reg : list of ndarray
-        Description
+        Cropped and registered images.
 
     """ 
     
@@ -256,23 +262,28 @@ def imreg(stack, coords, xysize=xysize, zsize=zsize, preload=preload):
 def imroi(crop_reg, coords, xysize=xysize, preload=preload):
     
     """
-    Description
+    Get cell of interest ROI.
+    
+    Once Napari is open, draw a polygon around the cell of interest and close
+    the window to move on to the next.
+    
+    If preload, the code will instead import previously saved ROIs.    
     
     Parameters
     ----------
     crop_reg : list of ndarray
-        Description
+        Cropped and registered images.
         
     coords : ndarray
-        Description
+        Cells of interest coordinates.
         
     preload : bool
-        Description
+        Load previously saved ROI.
     
     Returns
     -------
     crop_roi : list of ndarray
-        Description
+        ROI images.
 
     Raises
     ------
@@ -312,25 +323,26 @@ def imroi(crop_reg, coords, xysize=xysize, preload=preload):
 def improcess(crop_reg, crop_roi):
     
     """
-    Description
+    Process images for binarization.
+    
+    The function first remove out of ROI signals and then center the cell of 
+    interest. Finally, an affine registration is applied to reduce shear 
+    artifacts due to acquisition conditions. 
     
     Parameters
     ----------
     crop_reg : list of ndarray
-        Description
+        Cropped and registered images.
         
     crop_roi : list of ndarray
-        Description
+        ROI images.
 
     Returns
     -------
     crop_process : list of ndarray
-        Description
+        Processed images.
 
-    Raises
-    ------
     """ 
-    
     sr = StackReg(StackReg.AFFINE)
 
     crop_process = []
@@ -362,23 +374,25 @@ def improcess(crop_reg, crop_roi):
 def immask(crop_process, thresh_coeff=thresh_coeff):
     
     """
-    Description
+    Segment cells of interest using Li thresholding. 
+    
+    Threshold can be adjusted using the thresh_coeff parameter.
     
     Parameters
     ----------
     crop_process : list of ndarray
-        Description
+        Processed images.
         
     thresh_coeff : float
-        Description
+        Adjust the threshold value.
+        < 1 expand the segmented area.
+        > 1 reduce the segmented area.
     
     Returns
     -------
     crop_mask : list of ndarray
-        Description
-
-    Raises
-    ------
+        Binarized images.
+        
     """ 
     
     crop_mask = []
@@ -407,6 +421,26 @@ def immask(crop_process, thresh_coeff=thresh_coeff):
 
 def imdiff(crop_mask):
     
+    """
+    Evaluate cells of interest dynamics. 
+    
+    Average pixel value from t-1 to t0. 
+    Static pixels = 0 or 1, while changing pixels = 0.5. 
+    
+    Note that first timepoint is not evaluated due to the lack of t-1. 
+        
+    Parameters
+    ----------
+    crop_mask : list of ndarray
+        Binarized images.
+
+    Returns
+    -------
+    crop_diff : list of ndarray
+        Cell dynamics images.    
+    
+    """ 
+    
     crop_diff = []
     
     for mask in crop_mask:  
@@ -425,7 +459,7 @@ def imdiff(crop_mask):
 #%% Main
 
 # Convert to uint8
-stack = range_uint8(stack, int_range=0.999)
+stack = ranged_uint8(stack, percent_low=0.1, percent_high=99.9)
 # Select 
 coords = imselect(stack, preload=preload)
 # Crop & register
