@@ -53,28 +53,31 @@ stack = imread(stack_path)
 
 #%% functions
 
-def range_uint8(img, int_range=0.99):
+def range_uint8(img, percent_low=1, percent_high=99):
 
-    ''' 
-    Description
+    """ 
+    Convert image to uint8 considering only values within the percentile range. 
     
     Parameters
     ----------
     img : ndarray
-        Description        
+        Image to be converted.
+        Should not be uint8.
         
-    int_range : float
-        Description
+    percent_low : float
+        Percentile to discard low values.
+        Between 0 and 100 inclusive.
+        
+    percent_high : float
+        Percentile to discard high values.
+        Between 0 and 100 inclusive.
     
     Returns
     -------  
     img : ndarray
-        Description
-        
-    Notes
-    -----   
+        Converted image.
     
-    '''
+    """
 
     # Get data type 
     data_type = (img.dtype).name
@@ -86,8 +89,8 @@ def range_uint8(img, int_range=0.99):
     else:
         
         # Get data intensity range
-        int_min = np.percentile(img, (1-int_range)*100)
-        int_max = np.percentile(img, int_range*100) 
+        int_min = np.percentile(img, percent_low)
+        int_max = np.percentile(img, percent_high) 
         
         # Rescale data
         img[img<int_min] = int_min
@@ -97,28 +100,28 @@ def range_uint8(img, int_range=0.99):
     
     return img
 
-''' ----------------------------------------------------------------------- '''
+""" ----------------------------------------------------------------------- """
 
 def imselect(stack, preload=preload):
     
     """
-    Description
+    Run a Napari interface to extract xy and z coordinates of the cells of 
+    interest. If preload, the code will instead import previously saved
+    coordinates.
     
     Parameters
     ----------
     stack : ndarray
-        Description
+        Source image stack. 
                 
     preload : bool
-        Description
+        Load previously saved coordinates.
     
     Returns
     -------
     coords : ndarray
-        Description
+        Cells of interest coordinates.
 
-    Raises
-    ------
     """ 
     
     if preload and Path(dir_path, 'coords.csv').is_file():
@@ -141,26 +144,27 @@ def imselect(stack, preload=preload):
 
     return coords
 
-''' ----------------------------------------------------------------------- '''
+""" ----------------------------------------------------------------------- """
 
 def imreg(stack, coords, xysize=xysize, zsize=zsize, preload=preload):
     
     """
-    Description
+    Crop and register cells of interest in xy through the z acquisition.
+    If preload, the code will instead import registered images from the 
     
     Parameters
     ----------
     stack : ndarray
-        Description
+        Source image stack.
         
     coords : ndarray
-        Description
+        Cells of interest coordinates.
         
     xysize : int
-        Description
+        Size of the crop region (pixels)
         
     zsize : int
-        Description
+        Depth of the crop region, should be odd (slices)
         
     preload : bool
         Description
@@ -170,8 +174,6 @@ def imreg(stack, coords, xysize=xysize, zsize=zsize, preload=preload):
     crop_reg : list of ndarray
         Description
 
-    Raises
-    ------
     """ 
     
     # Nested function ---------------------------------------------------------
@@ -249,7 +251,7 @@ def imreg(stack, coords, xysize=xysize, zsize=zsize, preload=preload):
 
     return crop_reg
 
-''' ----------------------------------------------------------------------- '''
+""" ----------------------------------------------------------------------- """
 
 def imroi(crop_reg, coords, xysize=xysize, preload=preload):
     
@@ -305,7 +307,7 @@ def imroi(crop_reg, coords, xysize=xysize, preload=preload):
 
     return crop_roi
 
-''' ----------------------------------------------------------------------- '''
+""" ----------------------------------------------------------------------- """
 
 def improcess(crop_reg, crop_roi):
     
@@ -355,7 +357,7 @@ def improcess(crop_reg, crop_roi):
     
     return crop_process
 
-''' ----------------------------------------------------------------------- '''
+""" ----------------------------------------------------------------------- """
 
 def immask(crop_process, thresh_coeff=thresh_coeff):
     
@@ -401,7 +403,7 @@ def immask(crop_process, thresh_coeff=thresh_coeff):
     
     return crop_mask
 
-''' ----------------------------------------------------------------------- '''
+""" ----------------------------------------------------------------------- """
 
 def imdiff(crop_mask):
     
