@@ -6,8 +6,12 @@ Download the repository and create a Python environment with the following comma
 
     conda env create -f environment.yml
 
-## Usage
-This package contains two Python scripts. The first script, `extract.py`, enables you to manually select microglia and process it to investigate their dynamics. This imply multiple rounds of image registration to minimize movements due to the difficult image acquisition. The second script, `measure.py`, 
+## Content
+This package contains two Python scripts. The first script, `extract.py`, is used to manually select microglia and process them to investigate their dynamics. This imply multiple rounds of image registration and processing to achieve the segmentation of microglia. Cellular dynamics is evaluated by calculating the percentage of binary pixels whose value changes between two consecutive timepoints. 
+
+The second script, `measure.py`, is used to collect and format data from 
+
+
 
 ## Dependencies
  - Python >= 3.9 
